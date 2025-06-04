@@ -28,7 +28,7 @@
         <main class="py-24 grid grid-cols-12 gap-4 border max-w-[75dvw] mx-auto">
             <section class="col-span-8 bg-white rounded-lg shadow-lg p-6 py-8">
                 <p>
-                    <span class="float-left mr-2 text-7xl font-bold">H</span>ey movie buffs, art enthusiasts, and anyone
+                    span class="float-left mr-2 text-7xl font-bol<d">H</span>ey movie buffs, art enthusiasts, and anyone
                     with a love for the miniature! Prepare to be amazed by the Musée Miniature et Cinéma, a unique
                     museum that blends art, history, and cinematic magic. This captivating venue showcases an incredible
                     collection of miniature models, painstakingly crafted replicas of famous buildings, iconic film

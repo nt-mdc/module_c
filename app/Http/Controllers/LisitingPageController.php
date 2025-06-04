@@ -2,15 +2,33 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Contracts\Cache\Store;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 
 class LisitingPageController extends Controller
 {
+    //todo: regex para separar o arquvio em array
 
+    private function verifyDateFilename($filename)
+    {
 
-/**
+        if (strlen($filename) < 11 || $filename[10] !== '-') {
+            return null;
+        }
+        // Original: $firstTenCarac = substr($nameWithoutExtension, 0, 10);
+        $datePart = substr($filename, 0, 10);
+        // Suggestion: Renamed $firstTenCarac to $datePart for clarity.
+
+        // Original: $isDate = Carbon::canBeCreatedFromFormat($firstTenCarac, 'Y-m-d');
+        return Carbon::canBeCreatedFromFormat($datePart, 'Y-m-d');
+    }
+
+    /**
      * Verifies if a file meets specific requirements based on its name and content (front matter).
      *
      * @param string $path The path to the file.
@@ -20,7 +38,7 @@ class LisitingPageController extends Controller
     {
         // Original: function verifyIfTheFileMeetsTheRequirements($path)
 
-        if (!Storage::exists($path) || Storage::isDirectory($path)) { // Added: Basic check
+        if (!Storage::exists($path) || File::isDirectory($path)) { // Added: Basic check
             return null;
         }
 
@@ -29,18 +47,11 @@ class LisitingPageController extends Controller
 
         // Original: $nameWithoutExtension = explode('.', basename($path))[0];
         $filenameWithoutExtension = pathinfo(basename($path), PATHINFO_FILENAME);
+
         // Correction: Used pathinfo() for a more robust way to get the filename without the extension.
         // It handles filenames with multiple dots better (e.g., "my.file.name.md").
 
-        // Original: $firstTenCarac = substr($nameWithoutExtension, 0, 10);
-        $datePart = substr($filenameWithoutExtension, 0, 10);
-        // Suggestion: Renamed $firstTenCarac to $datePart for clarity.
-
-        // Original: $isDate = Carbon::canBeCreatedFromFormat($firstTenCarac, 'Y-m-d');
-        $isValidDateFilename = Carbon::canBeCreatedFromFormat($datePart, 'Y-m-d');
-        // Suggestion: Renamed $isDate to $isValidDateFilename for better context.
-
-        if (!$isValidDateFilename) {
+        if (!$this->verifyDateFilename($filenameWithoutExtension)) {
             return null;
         }
 
@@ -73,7 +84,7 @@ class LisitingPageController extends Controller
                     $isFrontMatterSection = false;
                     // Suggestion: If no content after the second '---' is needed for metadata,
                     // you could break the loop here for a minor optimization.
-                    // break;
+                    break;
                 }
                 continue;
             }
@@ -108,8 +119,11 @@ class LisitingPageController extends Controller
             }
         }
 
+        $filePath = substr($path, strpos($path, '/') + 1);
+        $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+
         // Original: $content['link'] = route('list.pages', ['path' => $nameWithoutExtension]);
-        $content['link'] = route('list.pages', ['path' => $filenameWithoutExtension]);
+        $content['link'] = route('list.pages', ['path' => substr($filePath, 0, - (strlen($extension) + 1))]);
         // Ensures the same filename source is used.
 
         return $content;
@@ -123,6 +137,7 @@ class LisitingPageController extends Controller
      */
     private function retrieveAndFormatFilesAndFolders(string $path): array // Corrected: Renamed and added type hinting
     {
+        // dd($path);
         // Original: private function retriveFilesAndFolderFormmated($path)
         // Correction: Typo in function name "retrive" and "Formmated" fixed to "retrieve" and "Formatted".
 
@@ -149,7 +164,7 @@ class LisitingPageController extends Controller
             // Original: array_push($filesAndFolders, [ ... ]);
             $items[] = [ // Suggestion: Use [] for cleaner array append.
                 'title' => basename($directory),
-                'link' => route('list.pages', ['path' => basename($directory)]),
+                'link' => route('list.pages', ['path' => substr($directory, strpos($directory, '/') + 1)]),
                 // Suggestion: Consider adding a 'type' to distinguish items in the view, e.g.:
                 // 'type' => 'folder',
                 // 'is_folder' => true,
@@ -167,6 +182,8 @@ class LisitingPageController extends Controller
      */
     public function index(string $relativePath = ''): \Illuminate\View\View // Added type hinting
     {
+
+
         // Original: public function index($path = '')
         // Suggestion: Renamed $path to $relativePath for clarity.
         $basePath = 'content-pages';
@@ -180,14 +197,27 @@ class LisitingPageController extends Controller
         // Correction: More robust path concatenation to avoid double slashes
         // and handle empty $relativePath correctly.
 
+        $filename = basename($dynamicPath);
+        $dirname = dirname($dynamicPath);
+
+        if ($this->verifyDateFilename($filename)) {
+            $arquivos = Storage::files($dirname);
+            dd(
+                Arr::where(
+                    $arquivos,
+                    function ($item) use ($filename) {
+                        return Str::contains($item, $filename);
+                    }
+                )
+
+            );
+        } else {
+            # code...
+        }
+
         // Original: return view('home', ['data' => $this->retriveFilesAndFolderFormmated($dynamicPath)]);
         return view('home', [
             'data' => $this->retrieveAndFormatFilesAndFolders($dynamicPath) // Corrected: Called renamed function
         ]);
     }
 }
-
-
-
-    
-
