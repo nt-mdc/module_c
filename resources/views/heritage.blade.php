@@ -19,23 +19,30 @@
 <body class="font-sans antialiased bg-gray-100">
     <div class="min-h-screen">
         <header class="w-full max-h-[70dvh] relative">
-            <img class="w-full max-h-[70dvh] object-cover" src="{{ asset('storage/images/'.$data['frontMatter']['cover']) }}"
-                alt="">
+            <img class="w-full max-h-[70dvh] object-cover"
+                src="{{ asset('storage/images/' . $data['frontMatter']['cover']) }}" alt="">
             <h1
                 class="absolute p-5 bg-black top-[90%] left-[50%] -translate-x-[50%] text-white font-bold text-4xl/9 max-w-4xl">
                 {{ $data['frontMatter']['title'] }}</h1>
         </header>
-        <main class="py-24 grid grid-cols-12 gap-4 max-w-[75dvw] mx-auto">
+        <main class="py-24 grid grid-cols-12 gap-4 max-w-[80dvw] mx-auto">
             <section class="col-span-8 bg-white rounded-lg shadow-lg p-6 py-8">
+
+                <span class="[&>p]:first-letter:text-7xl [&>p]:first-letter:font-bold [&>p]:first-letter:float-left [&>p]:first-letter:mr-2">{!! $data['first'] !!}</span>
+
                 @foreach ($data['content'] as $item)
-                    {!!$item!!}
+                    {!! $item !!}
                 @endforeach
+
+                {{-- {!!$data['content']!!} --}}
             </section>
-            <aside class="col-span-4 bg-white rounded-lg shadow-lg h-fit p-6">
+            <aside class="col-span-4 bg-white rounded-lg shadow-lg h-fit p-6 sticky top-2">
                 <ul class="space-y-1">
                     @foreach ($data['frontMatter'] as $key => $item)
-                        @if ($key === 'title' || $key === 'cover') @continue @endif
-                        <li class="capitalize">{{$key}}: {{$item}}</li>
+                        @if ($key === 'title' || $key === 'cover')
+                            @continue
+                        @endif
+                        <li class="capitalize">{{ $key }}: <span>{{ $item }}</span></li>
                     @endforeach
                 </ul>
             </aside>

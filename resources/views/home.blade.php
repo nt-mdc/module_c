@@ -28,7 +28,7 @@
                 <ul class="space-y-3 list-disc px-6">
                     @foreach ($data as $item)
                         <li>
-                            <a href="{{$item['link']}}">
+                            <a href="{{ $item['link'] }}">
                                 <span class="text-blue-600 font-semibold">{{ $item['title'] }}</span>
                                 <br>
                                 <span>{{ isset($item['summary']) ? $item['summary'] : '' }}</span>
@@ -38,11 +38,14 @@
                 </ul>
             </section>
             <aside class="col-span-4 bg-white rounded-lg shadow-lg h-fit p-6">
-                <ul>
-                    <li>Date: 2026-01-10</li>
-                    <li>tags: <a href="#">Lyon</a></li>
-                    <li>Draft: True</li>
-                </ul>
+                <x-input-label for="search" :value="__('Search')" />
+                <form action="" method="post" class="flex justify-center items-center gap-3 w-full">
+                    <x-text-input id="search" class="block mt-1 w-full" type="text" name="search"
+                        placeholder="KEYWORD" :value="old('search')" required autofocus />
+                    <x-primary-button>
+                        {{ __('Search') }}
+                    </x-primary-button>
+                </form>
             </aside>
         </main>
     </div>

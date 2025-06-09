@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -29,24 +30,40 @@ class SinglePageController extends Controller
             $parsedFrontMatter[$key] = $value;
         }
 
+        //limpa as quebras de linha e separa em array
         $contentRaw = array_filter(preg_split("/\r\n|\r|\n/", str_replace($frontMatter[0], '', $rawContent)));
         $htmlArray = [];
-        foreach ($contentRaw as $key => $value) {
-            $htmlString = $value;
-
-            
-
-            if (preg_match('/^\*\s+(.*?)/', $htmlString, $matches)) {
-                $htmlString = '<li>' . $matches[1] . '</li>';
+        if ($pathExt !== "html") { //se n for html, converte em html
+            foreach ($contentRaw as $key => $value) {
+                $pattern = '/\b([\w\-]+\.(jpg|jpeg|png|gif|webp))\b/i';
+                $base = asset("storage/images/");
+                $base .= '/${1}';
+                $replacement = '![Image]('.$base.')';
+                $convertedText = preg_replace($pattern, $replacement, $value);
+                $htmlArray[] = Str::markdown($convertedText);
             }
-
-            $htmlString = preg_replace('/\*\*(.*?)\*\*/s', '<strong>$1</strong>', $htmlString);
-
-
-
-
-            $htmlArray[] = $htmlString;
+        } else { // se for html, reseta os indices do array original e salva no novo array
+            $htmlArray = array_values($contentRaw);
         }
+
+        // //pega a primeira string
+        // $rawString = $htmlArray[0];
+        // $htmlStripped = strip_tags($rawString); // tira as tags html
+        // $firstLetter = substr($htmlStripped, 0, 1); // pega a primeira letra
+
+        // $arrayFromRawString = str_split($rawString); // transforma a string em array
+
+        // $firstLetterKey = array_search($firstLetter, $arrayFromRawString); //procura o indice da primeira letra
+        // unset($arrayFromRawString[$firstLetterKey]); // exclui ela
+        // $rawString = implode("", $arrayFromRawString); // monta a string dnv
+        // $htmlArray[0] = $rawString; // atualiza a string para ficar sem a primeira letra
+
+
+        // dd($firstLetter,$firstLetterKey, $rawString);
+        // dd($contentRaw);
+
+
+
 
 
         if (!array_key_exists('title', $parsedFrontMatter)) {
@@ -58,12 +75,22 @@ class SinglePageController extends Controller
             }
         }
 
+        if (!array_key_exists('cover', $parsedFrontMatter)) {
+            $coverPath = Arr::where(Storage::disk('public')->allFiles(), function ($item) use ($pathName) {
+                return Str::contains($item, $pathName);
+            });
+            $coverPath = explode("/", reset($coverPath))[1];
+            $parsedFrontMatter['cover'] = $coverPath;
+        }
 
+        $firstString = $htmlArray[0];
+        unset($htmlArray[0]);
 
 
         $formattedContent = [
             'frontMatter' => $parsedFrontMatter,
-            'content' => $htmlArray
+            'content' => $htmlArray,
+            'first' => $firstString
         ];
 
         return view('heritage', [
