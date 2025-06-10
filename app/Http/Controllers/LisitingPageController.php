@@ -14,6 +14,64 @@ use RecursiveIteratorIterator;
 
 class LisitingPageController extends Controller
 {
+
+    public function index(string $relativePath = '', array $items = []): \Illuminate\View\View
+    {
+        if ($items) {
+            return view('home', [
+                'data' => $items
+            ]);
+        }
+
+        $basePath = 'content-pages';
+
+        $dynamicPath = rtrim($basePath, '/');
+        if (!empty(trim($relativePath, '/'))) {
+            $dynamicPath .= '/' . trim($relativePath, '/');
+        }
+
+        $filename = basename($dynamicPath);
+        $dirname = dirname($dynamicPath);
+
+        if ($this->verifyDateFilename($filename)) {
+            $arquivos = Storage::files($dirname);
+            $filePath = Arr::where(
+                $arquivos,
+                function ($item) use ($filename) {
+                    return Str::contains($item, $filename);
+                }
+            );
+
+            $filePath = reset($filePath);
+
+            if ($filePath) {
+                return SinglePageController::index($filePath);
+            }
+        }
+
+        return view('home', [
+            'data' => $this->retrieveAndFormatFilesAndFolders($dynamicPath)
+        ]);
+    }
+
+    public function searchByTags(string $urlTags = "")
+    {
+        $rawTags = trim($urlTags, "/");
+        $tags = explode("/", Str::lower($rawTags));
+        return view("home", ["data" => $this->retrieveTagsInsideFile($tags)]);
+    }
+
+    public function searchByKeyword(Request $request)
+    {
+        $request->validate([
+            "search" => "required|string"
+        ]);
+
+        $keywords = explode("/", Str::lower(trim($request->search, "/")));
+
+        return $this->index("", $this->retrieveFilesContainsPassedKeywords($keywords));
+    }
+
     private function verifyDateFilename($filename)
     {
         if (strlen($filename) < 11 || $filename[10] !== '-') {
@@ -100,40 +158,6 @@ class LisitingPageController extends Controller
         return $items;
     }
 
-    public function index(string $relativePath = ''): \Illuminate\View\View
-    {
-        $basePath = 'content-pages';
-
-        $dynamicPath = rtrim($basePath, '/');
-        if (!empty(trim($relativePath, '/'))) {
-            $dynamicPath .= '/' . trim($relativePath, '/');
-        }
-
-        $filename = basename($dynamicPath);
-        $dirname = dirname($dynamicPath);
-
-        if ($this->verifyDateFilename($filename)) {
-            $arquivos = Storage::files($dirname);
-            $filePath = Arr::where(
-                $arquivos,
-                function ($item) use ($filename) {
-                    return Str::contains($item, $filename);
-                }
-            );
-
-            $filePath = reset($filePath);
-
-            if ($filePath) {
-                return SinglePageController::index($filePath);
-            }
-        }
-
-        return view('home', [
-            'data' => $this->retrieveAndFormatFilesAndFolders($dynamicPath)
-        ]);
-    }
-
-
     private function retrieveTagsInsideFile($tags, string $relativePath = "")
     {
         $basePath = 'content-pages';
@@ -180,14 +204,6 @@ class LisitingPageController extends Controller
         return $items;
     }
 
-    public function searchByTags(string $urlTags = "")
-    {
-        $rawTags = trim($urlTags, "/");
-        $tags = explode("/", Str::lower($rawTags));
-        return view("home", ["data" => $this->retrieveTagsInsideFile($tags)]);
-    }
-
-
     private function retrieveFilesContainsPassedKeywords($keywords, string $relativePath = "")
     {
         $basePath = 'content-pages';
@@ -206,37 +222,34 @@ class LisitingPageController extends Controller
             $rawContent = Storage::get($file);
             preg_match('/---\s*(.*?)\s*---/s', $rawContent, $frontMatter);
             $frontMatterLines = preg_split('/\r\n|\r|\n/', $frontMatter[1]);
-            $content = strip_tags(str_replace($frontMatter[0], "", $rawContent));
+            $content = Str::lower(strip_tags(str_replace($frontMatter[0], "", $rawContent)));
+            $bodyWords = array_map("trim", explode(" ", $content));
+            $hasMatch = false;
             foreach ($frontMatterLines as $line) {
                 if (strpos($line, ":") == false) {
                     continue;
                 }
 
                 list($key, $value) = array_map("trim", explode(":", $line, 2));
+
                 if ($key == "title") {
-                    $fileTitleContent = array_map("trim", explode(" ", Str::lower($value)));
-                    if (count(array_intersect($keywords, $fileTitleContent))) {
-                        $verifiedFile = $this->verifyFileRequirements($file);
-                        if ($verifiedFile) {
-                            $items[] = $verifiedFile;
-                        }
-                    } else {
-                        $fileContent = array_map("trim", explode(" ", $content));
-                        if (count(array_intersect($keywords, $fileContent))) {
-                            $verifiedFile = $this->verifyFileRequirements($file);
-                            if ($verifiedFile) {
-                                $items[] = $verifiedFile;
-                            }
-                        }
+                    $titleWords = array_map("trim", explode(" ", Str::lower($value)));
+                    if (count(array_intersect($keywords, $titleWords)) > 0) {
+                        $hasMatch = true;
                     }
-                } else {
-                    $fileContent = array_map("trim", explode(" ", $content));
-                    if (count(array_intersect($keywords, $fileContent))) {
-                        $verifiedFile = $this->verifyFileRequirements($file);
-                        if ($verifiedFile) {
-                            $items[] = $verifiedFile;
-                        }
-                    }
+
+                    break;
+                }
+            }
+
+            if (!$hasMatch && count(array_intersect($keywords, $bodyWords))) {
+                $hasMatch = true;
+            }
+
+            if ($hasMatch) {
+                $verifiedFile = $this->verifyFileRequirements($file);
+                if ($verifiedFile) {
+                    $items[] = $verifiedFile;
                 }
             }
         }
@@ -247,17 +260,6 @@ class LisitingPageController extends Controller
         }
 
         return $items;
-    }
-
-    public function searchByKeyword(Request $request)
-    {
-        $request->validate([
-            "search" => "required|string"
-        ]);
-
-        $keywords = explode("/", Str::lower(trim($request->search, "/")));
-
-        return $this->retrieveFilesContainsPassedKeywords($keywords);
     }
 
 
