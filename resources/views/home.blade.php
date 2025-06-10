@@ -39,7 +39,8 @@
             </section>
             <aside class="col-span-4 bg-white rounded-lg shadow-lg h-fit p-6">
                 <x-input-label for="search" :value="__('Search')" />
-                <form action="" method="post" class="flex justify-center items-center gap-3 w-full">
+                <form action="{{route("keyword.pages")}}" method="post" class="flex justify-center items-center gap-3 w-full">
+                    @csrf
                     <x-text-input id="search" class="block mt-1 w-full" type="text" name="search"
                         placeholder="KEYWORD" :value="old('search')" required autofocus />
                     <x-primary-button>

@@ -10,8 +10,9 @@ Route::get('/', function () {
 });
 
 Route::prefix('xx_module_c')->group(function () {
-    Route::get('heri', [HeritagePages::class, 'index']);
     Route::get('/', [LisitingPageController::class, 'index'])->name('home');
+    Route::get('/search', [LisitingPageController::class, 'indexSearchByKeyword'])->name('keyword.pages');
+    Route::post('/search', [LisitingPageController::class, 'searchByKeyword']);
     Route::get('heritages/{path?}', [LisitingPageController::class, 'index'])->where('path', '.*')->name('list.pages');
     Route::get('tags/{tags?}', [LisitingPageController::class, 'searchByTags'])->where('tags', '.*')->name('search.pages');
 });

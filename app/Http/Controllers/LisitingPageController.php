@@ -186,4 +186,146 @@ class LisitingPageController extends Controller
         $tags = explode("/", Str::lower($rawTags));
         return view("home", ["data" => $this->retrieveTagsInsideFile($tags)]);
     }
+
+
+    private function retrieveFilesContainsPassedKeywords($keywords, string $relativePath = "")
+    {
+        $basePath = 'content-pages';
+
+        $dynamicPath = rtrim($basePath, '/');
+        if (!empty(trim($relativePath, '/'))) {
+            $dynamicPath .= '/' . trim($relativePath, '/');
+        }
+
+        $files = Storage::files($dynamicPath);
+        $directories = Storage::directories($dynamicPath);
+
+        $items = [];
+
+        foreach ($files as $file) {
+            $rawContent = Storage::get($file);
+            preg_match('/---\s*(.*?)\s*---/s', $rawContent, $frontMatter);
+            $frontMatterLines = preg_split('/\r\n|\r|\n/', $frontMatter[1]);
+            $content = strip_tags(str_replace($frontMatter[0], "", $rawContent));
+            foreach ($frontMatterLines as $line) {
+                if (strpos($line, ":") == false) {
+                    continue;
+                }
+
+                list($key, $value) = array_map("trim", explode(":", $line, 2));
+                if ($key == "title") {
+                    $fileTitleContent = array_map("trim", explode(" ", Str::lower($value)));
+                    if (count(array_intersect($keywords, $fileTitleContent))) {
+                        $verifiedFile = $this->verifyFileRequirements($file);
+                        if ($verifiedFile) {
+                            $items[] = $verifiedFile;
+                        }
+                    } else {
+                        $fileContent = array_map("trim", explode(" ", $content));
+                        if (count(array_intersect($keywords, $fileContent))) {
+                            $verifiedFile = $this->verifyFileRequirements($file);
+                            if ($verifiedFile) {
+                                $items[] = $verifiedFile;
+                            }
+                        }
+                    }
+                } else {
+                    $fileContent = array_map("trim", explode(" ", $content));
+                    if (count(array_intersect($keywords, $fileContent))) {
+                        $verifiedFile = $this->verifyFileRequirements($file);
+                        if ($verifiedFile) {
+                            $items[] = $verifiedFile;
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach ($directories as $directory) {
+            $pathDir = substr($directory, strpos($directory, '/') + 1);
+            $items = array_merge($items, $this->retrieveFilesContainsPassedKeywords($keywords, $pathDir));
+        }
+
+        return $items;
+    }
+
+    public function searchByKeyword(Request $request)
+    {
+        $request->validate([
+            "search" => "required|string"
+        ]);
+
+        $keywords = explode("/", Str::lower(trim($request->search, "/")));
+
+        return $this->retrieveFilesContainsPassedKeywords($keywords);
+    }
+
+
+    /* private function retrieveFilesContainsPassedKeywords(array $keywords, string $relativePath = "")
+    {
+        $basePath = 'content-pages';
+
+        // Constrói o caminho de forma mais direta.
+        $dynamicPath = $relativePath ? $basePath . '/' . trim($relativePath, '/') : $basePath;
+
+        $files = Storage::files($dynamicPath);
+        $items = [];
+
+        foreach ($files as $file) {
+            $rawContent = Storage::get($file);
+
+            // Pula para o próximo arquivo se não houver "front matter".
+            if (!preg_match('/---\s*(.*?)\s*---/s', $rawContent, $frontMatterMatch)) {
+                continue;
+            }
+
+            // O conteúdo do corpo do arquivo é processado apenas UMA VEZ.
+            $content = strip_tags(str_replace($frontMatterMatch[0], "", $rawContent));
+            $bodyWords = array_map("trim", explode(" ", $content));
+
+            $frontMatterLines = preg_split('/\r\n|\r|\n/', $frontMatterMatch[1]);
+            $hasMatch = false;
+
+            // Primeiro, verifica se alguma palavra-chave está no título.
+            foreach ($frontMatterLines as $line) {
+                if (strpos($line, ":") === false) {
+                    continue;
+                }
+
+                list($key, $value) = array_map("trim", explode(":", $line, 2));
+
+                if ($key === "title") {
+                    $titleWords = array_map("trim", explode(" ", Str::lower($value)));
+                    if (count(array_intersect($keywords, $titleWords)) > 0) {
+                        $hasMatch = true;
+                    }
+                    // Sai do loop do front matter, pois já analisamos o título e o corpo.
+                    break;
+                }
+            }
+
+            // Se não encontrou no título, verifica no corpo do texto.
+            if (!$hasMatch && count(array_intersect($keywords, $bodyWords)) > 0) {
+                $hasMatch = true;
+            }
+
+            // Se encontrou uma correspondência (no título OU no corpo),
+            // verifica os requisitos e adiciona o arquivo à lista.
+            if ($hasMatch) {
+                $verifiedFile = $this->verifyFileRequirements($file);
+                if ($verifiedFile) {
+                    $items[] = $verifiedFile;
+                }
+            }
+        }
+
+        // A lógica de recursão para diretórios permanece a mesma.
+        $directories = Storage::directories($dynamicPath);
+        foreach ($directories as $directory) {
+            $pathDir = substr($directory, strpos($directory, '/') + 1);
+            $items = array_merge($items, $this->retrieveFilesContainsPassedKeywords($keywords, $pathDir));
+        }
+
+        return $items;
+    } */
 }
